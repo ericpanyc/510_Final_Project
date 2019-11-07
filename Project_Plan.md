@@ -10,3 +10,4 @@
     - Second Week. Finish differential expression analysis on different datasets created in first week.
     - Third Week. Integrate shiny web app functions to the analysis accomplished in week 2 and release the beta version of the product.
 5. The website would let the user choose different genes, then it will display the graphs plotted by R, to help user understand the influence those genes have on AD.
+End
