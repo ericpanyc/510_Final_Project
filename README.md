@@ -11,3 +11,9 @@
     - Third Week. Integrate shiny web app functions to the analysis accomplished in week 2 and release the beta version of the product.
 5. The website would let the user choose different genes, then it will display the graphs plotted by R, to help user understand the influence those genes have on AD.
 End
+
+
+## Milestone Update:
+
+1. Milestone 1 (11/14/18): Found that FPKM value is not suitable for differential expression analysis, need to use bam data to generate raw counts table. Following step: Download all bam files and learn how to use featureCounts function.
+2. Milestone 2 (11/21/18): Could get a raw counts table of gene counts matrix from all samples, but the DGEList I got is not identical to the sample on the vignette. Following step: Need to figure out how to follow the vignette to proceed to the next step.
