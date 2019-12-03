@@ -1,3 +1,11 @@
+if (!requireNamespace("BiocManager", quietly = TRUE))
+        install.packages("BiocManager")
+
+BiocManager::install("limma")
+BiocManager::install("Glimma")
+BiocManager::install("edgeR")
+
+
 library(limma)
 library(Glimma)
 library(edgeR)
@@ -14,13 +22,13 @@ dm <- data.matrix(data)
 dm <- as.data.frame(dm)
 dge <- DGEList(counts=dm)
 
-genes <- read.csv("ADTBI_Data/gene_expression/rows-genes.csv", header = TRUE)
+genes <- read.csv("rows-genes.csv", header = TRUE)
 genes <- genes[,c(3,4,2)]
 
-samples <- read.csv("ADTBI_Data/gene_expression/columns-samples.csv", header = TRUE)
+samples <- read.csv("columns-samples.csv", header = TRUE)
 samples <- samples[,c(1,2,9)]
 
-donor_info <- read.csv("ADTBI_Data/new_DonorInformation.csv", header = TRUE)
+donor_info <- read.csv("new_DonorInformation.csv", header = TRUE)
 donor_info <- donor_info[,c(1,4,5,20)]
 
 total <- merge(samples, donor_info, by="donor_id")
