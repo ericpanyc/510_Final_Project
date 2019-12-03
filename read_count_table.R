@@ -5,17 +5,21 @@ BiocManager::install("limma")
 BiocManager::install("Glimma")
 BiocManager::install("edgeR")
 
+install.packages("ggfortify")
+install.packages("RColorBrewer")
 
 library(limma)
 library(Glimma)
 library(edgeR)
+library(ggfortify)
+library(RColorBrewer)
 
 setwd("~/Downloads/510finalproject")
 data <- read.table("count_table.txt", sep = "\t", stringsAsFactors = FALSE)
 colname <- substr(data[1,],1,9)
 names(data) <- colname
-data <- data[-c(1),]
 rownames(data) <- data$Geneid
+data <- data[-c(1),]
 data <- data[,-c(1)]
 
 dm <- data.matrix(data)
@@ -71,23 +75,28 @@ title(main="A. apo")
 plotMDS(lcpm, labels=structure, col=col.structure, dim=c(3,4))
 title(main="B. structure")
 
-design <- model.matrix(~0+apo+structure)
-colnames(design) <- gsub("apo", "", colnames(design))
+# design <- model.matrix(~0+apo+structure)
+# colnames(design) <- gsub("apo", "", colnames(design))
 
-contr.matrix <- makeContrasts(N-Y, O-Y, N-O, levels = colnames(design))
+# contr.matrix <- makeContrasts(N-Y, O-Y, N-O, levels = colnames(design))
 
-par(mfrow=c(1,2))
-v <- voom(x, design, plot=TRUE)
-vfit <- lmFit(v, design)
-vfit <- contrasts.fit(vfit, contrasts=contr.matrix)
-efit <- eBayes(vfit)
-plotSA(efit, main="Final model: Mean-variance trend")
+# par(mfrow=c(1,2))
+# v <- voom(x, design, plot=TRUE)
+# vfit <- lmFit(v, design)
+# vfit <- contrasts.fit(vfit, contrasts=contr.matrix)
+# efit <- eBayes(vfit)
+# plotSA(efit, main="Final model: Mean-variance trend")
 
 
-pca_table <- t(x$counts)
+# pca_table <- t(x$counts)
+# pca_table <- as.data.frame(pca_table)
+# pca_table$AD <- AD
+# pca_table_data <- pca_table[c(1:28485)]
+# autoplot(prcomp(pca_table_data), data=pca_table, colour = "AD")
+
+df_cpm <- as.data.frame(lcpm)
+pca_table <- t(df_cpm)
 pca_table <- as.data.frame(pca_table)
-pca_table$AD <- AD
+pca_table$apo <- apo
 pca_table_data <- pca_table[c(1:28485)]
-autoplot(prcomp(pca_table_data), data=pca_table, colour = "AD")
-
-
+autoplot(prcomp(pca_table_data), data=pca_table, colour = "apo")
