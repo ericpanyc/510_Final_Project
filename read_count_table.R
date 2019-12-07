@@ -13,21 +13,44 @@ library(Glimma)
 library(edgeR)
 library(ggfortify)
 library(RColorBrewer)
+library(dplyr)
 
 setwd("~/Downloads/510finalproject")
 data <- read.table("count_table.txt", sep = "\t", stringsAsFactors = FALSE)
 colname <- substr(data[1,],1,9)
 names(data) <- colname
-rownames(data) <- data$Geneid
 data <- data[-c(1),]
+
+
+data <- data[-c(35365,35369),]
+
+data <- cbind(genes, data)
+data <- data[,-c(1,3)]
+
+
+
+rownames(data) <- data$gene_symbol
 data <- data[,-c(1)]
+
+# Investigate on individual instead of sample
+data_copy <- t(data)
+data_copy <- as.data.frame(data_copy)
+data_copy$sampleID <- rownames(data_copy)
+data_copy <- data_copy[,c(50282,1:50281)]
+data_individual <- merge(x=data_copy,y=samples, by.x="sampleID", by.y="rnaseq_profile_id")
+data_individual <- data_individual[,c(1,50283,50284,2:50282)]
+data_individual <- data_individual[,-c(1,3)]
+data_individual <- data_individual[!duplicated(data_individual$donor_id),]
+rownames(data_individual) <- data_individual$donor_id
+data_individual <- data_individual[,-c(1)]
+
 
 dm <- data.matrix(data)
 dm <- as.data.frame(dm)
 dge <- DGEList(counts=dm)
 
 genes <- read.csv("rows-genes.csv", header = TRUE)
-genes <- genes[,c(3,4,2)]
+genes <- genes[,c(3,4)]
 
 samples <- read.csv("columns-samples.csv", header = TRUE)
 samples <- samples[,c(1,2,9)]
@@ -55,13 +78,14 @@ dge$samples$AD <- AD
 dge$genes <- genes
 
 x <- dge
-cpm <- cpm(x)
-lcpm <- cpm(x, log=TRUE)
 
 keep.exprs <- filterByExpr(x)
 x <- x[keep.exprs,, keep.lib.sizes=FALSE]
-
 x <- calcNormFactors(x, method = "TMM")
+cpm <- cpm(x)
+lcpm <- cpm(x, log=TRUE)
+
+
 
 par(mfrow=c(1,2))
 col.apo <- apo
@@ -97,6 +121,16 @@ title(main="B. structure")
 df_cpm <- as.data.frame(lcpm)
 pca_table <- t(df_cpm)
 pca_table <- as.data.frame(pca_table)
-pca_table$apo <- apo
 pca_table_data <- pca_table[c(1:28485)]
-autoplot(prcomp(pca_table_data), data=pca_table, colour = "apo")
+
+donor_id <- rownames(data_individual)
+
+data_individual <- data.matrix(data_individual)
+data_individual <- as.data.frame(data_individual)
+full_table <- cbind(donor_id, data_individual)
+full_table <- merge(x=full_table,y=donor_info[,c(1,4)], by.x="donor_id", by.y="donor_id")
+rownames(full_table) <- donor_id
+full_table <- full_table[,-c(1)]
+
+autoplot(prcomp(data_individual), data=full_table, colour = "AD_condtion")
+autoplot(prcomp(counts), data = full_table, color = "AD_condtion")

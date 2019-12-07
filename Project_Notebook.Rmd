@@ -1,0 +1,239 @@
+---
+title: "510_FinalProject"
+output: html_notebook
+---
+Data Collecting Part
+
+Found accessible data at https://aging.brain-map.org/. Put all 377 bam files download api address into a single file and use the following command to automatically download them to the TRGN server.
+```{bash}
+wget -i tbi_data_files.txt
+```
+
+Then, use following code in python to convert all the downloaded files' name to Rnaseq profile id + .bam which can further be converted to donor id.
+```{python}
+import os
+import csv
+
+file_name_dict = dict()
+
+with open("filename_conversion.csv") as fin:
+    data = csv.reader(fin)
+    for row in data:
+        old_name = row[0]
+        new_name = row[1]
+        #print(type(old_name), type(new_name))
+        file_name_dict[old_name] = new_name
+        #print(new_name)
+
+for filename in os.listdir("."):
+    if filename in file_name_dict:
+        #print(filename)
+        new_name = file_name_dict[filename]
+        os.rename(filename, new_name)
+```
+
+Call featureCounts function on all the bam files in the directory to generate a raw counts matrix and put it into the output file all_counts.txt.
+```{bash}
+#!/bin/bash
+GTF=/scratch/yachenpa/TRGN510/rsem_GRCh38.p2.gtf
+CPUS=1
+MAPQ=0
+
+featureCounts -p -Q $MAPQ -T $CPUS -a $GTF -o all_counts.txt *bam
+```
+
+As we only need the count part of the output file, use the following bash command to extract the column.
+```{bash}
+cat all_counts.txt | cut -f1,7- | sed 1d > counts_table.txt
+```
+
+Then download the counts_table.txt file to local machine and begin analysis in RStudio.
+
+
+
+Data Analyzing Part
+
+Install packages.
+```{r}
+#if (!requireNamespace("BiocManager", quietly = TRUE))
+        #install.packages("BiocManager")
+
+#BiocManager::install("limma")
+#BiocManager::install("Glimma")
+#BiocManager::install("edgeR")
+
+#install.packages("ggfortify")
+#install.packages("RColorBrewer")
+```
+
+Load in packages.
+```{r}
+library(limma)
+library(Glimma)
+library(edgeR)
+library(ggfortify)
+library(RColorBrewer)
+library(dplyr)
+```
+
+Then, read in the count table and additional information files.
+```{r}
+setwd("~/Downloads/510finalproject")
+data <- read.table("count_table.txt", sep = "\t", stringsAsFactors = FALSE)
+genes <- read.csv("rows-genes.csv", header = TRUE)
+samples <- read.csv("columns-samples.csv", header = TRUE)
+donor_info <- read.csv("new_DonorInformation.csv", header = TRUE)
+```
+
+Do some processing on the data file.
+```{r}
+colname <- substr(data[1,],1,9)
+names(data) <- colname
+data <- data[-c(1),]
+```
+
+There are two genes in the data table but not listed in the genes table, find out that two records and delete them from data table. After this, convert entrez id  to gene symbol name.
+```{r}
+setdiff(data$Geneid, genes$gene_entrez_id)
+data <- data[-c(which(data$Geneid=="3502"),which(data$Geneid=="3507")),]
+symbol <- genes[,4]
+data_in_symbol <- cbind(symbol, data)
+rownames(data_in_symbol) <- data_in_symbol$symbol
+data_in_symbol <- data_in_symbol[,-c(1,2)]
+```
+
+As I am interested in the differential expression between AD cohort and healthy cohort, I am going to exclude redundant samples from one single individual, that is to say, keep only one sample from one donor.
+```{r}
+data_individual <- t(data_in_symbol)
+data_individual <- as.data.frame(data_individual)
+data_individual$sampleID <- rownames(data_individual)
+data_individual <- data_individual[,c(50282,1:50281)]
+sample_convert <- samples[,c(1,2)]
+data_individual <- merge(x=data_individual,y=sample_convert, by.x="sampleID", by.y="rnaseq_profile_id")
+data_individual <- data_individual[,c(1,50283,2:50282)]
+data_individual <- data_individual[,-c(1)]
+data_individual <- data_individual[!duplicated(data_individual$donor_id),]
+rownames(data_individual) <- data_individual$donor_id
+data_individual <- data_individual[,-c(1)]
+```
+
+Resort the donor_info table to comply with the order of data_individual table.
+```{r}
+id_order <- as.numeric(row.names(data_individual))
+donor_info <- donor_info[match(id_order, donor_info$donor_id),]
+```
+
+Convert data_individual table to a DGEList object.
+```{r}
+data_individual <- t(data_individual)
+data_individual <- as.data.frame(data_individual)
+dm <- data.matrix(data_individual)
+dm <- as.data.frame(dm)
+dge <- DGEList(counts=dm)
+```
+
+Put donor biology information to dge object.
+```{r}
+Sex <- as.factor((donor_info$sex))
+APOe4 <- as.character(donor_info$apo_e4_allele)
+APOe4 <- replace(APOe4, APOe4=="N/A", "O")
+APOe4 <- as.factor(APOe4)
+AD <- as.factor(donor_info$AD_condtion)
+NR <- as.factor(donor_info$nia_reagan)
+dge$samples$Sex <- Sex
+dge$samples$APOe4 <- APOe4
+dge$samples$AD <- AD
+dge$samples$NR <- NR
+```
+
+Put gene annotation to dge object.
+```{r}
+gene_info <- genes[,c(4,3,2)]
+dge$genes <- gene_info
+```
+
+Convert raw counts to CPM and log-CPM values using the cpm function in edgeR.
+```{r}
+cpm <- cpm(dge)
+lcpm <- cpm(dge, log=TRUE)
+```
+
+Remove genes that are lowly expressed.
+```{r}
+keep.exprs <- filterByExpr(dge)
+x <- dge[keep.exprs,, keep.lib.sizes=FALSE]
+```
+
+Check the effect of filtering.
+```{r}
+L <- mean(x$samples$lib.size) * 1e-6
+M <- median(x$samples$lib.size) * 1e-6
+lcpm.cutoff <- log2(10/M + 2/L)
+nsamples <- ncol(x)
+col <- brewer.pal(nsamples, "Paired")
+par(mfrow=c(1,2))
+plot(density(lcpm[,1]), col=col[1], lwd=2, ylim=c(0,0.26), las=2, main="", xlab="")
+title(main="A. Raw data", xlab="Log-cpm")
+abline(v=lcpm.cutoff, lty=3)
+for (i in 2:nsamples){
+den <- density(lcpm[,i])
+lines(den$x, den$y, col=col[i], lwd=2)
+}
+legend("topright", colnames(x), text.col=col, bty="n")
+lcpm <- cpm(x, log=TRUE)
+plot(density(lcpm[,1]), col=col[1], lwd=2, ylim=c(0,0.26), las=2, main="", xlab="")
+title(main="B. Filtered data", xlab="Log-cpm")
+abline(v=lcpm.cutoff, lty=3)
+for (i in 2:nsamples){
+den <- density(lcpm[,i])
+lines(den$x, den$y, col=col[i], lwd=2)
+}
+legend("topright", colnames(x), text.col=col, bty="n")
+```
+So obviously, the peak of lowly expressed genes is elminated after the filtering.
+
+Unsupervised clustering plot.
+```{r}
+par(mfrow=c(1,2))
+col.apo <- APOe4
+levels(col.apo) <-  brewer.pal(nlevels(col.apo), "Set1")
+col.apo <- as.character(col.apo)
+col.NR <- NR
+levels(col.NR) <-  brewer.pal(nlevels(col.NR), "Set2")
+col.NR <- as.character(col.NR)
+
+plotMDS(lcpm, labels=NR, col=col.NR)
+title(main="A. nia_reagan")
+plotMDS(lcpm, labels=APOe4, col=col.apo, dim=c(3,4))
+title(main="B. APOe4")
+```
+The graph on the right shows that the existence of APOe4 allelle can not clearly separate AD patients and healthy individuals. And the graph on the left shows that, using the NIA Reagan criteria, the separation is not acceptable as well. 
+
+
+
+Use Glimma to generate an interactive plot.
+```{r}
+glMDSPlot(lcpm, labels=paste(APOe4, NR, sep="_"), 
+          groups=x$samples[,c(5,7)], launch=TRUE)
+```
+
+Because we can not build meaningful comparison system with the factors we have which have at least 3 levels, we could not go along with the limma library analysis path. So we are going to use general PCA analysis to carry on with our project.
+
+Make a copy of lcpm table and convert it to PCA analysis format.
+```{r}
+lcpm_table <- cpm(dge, log=TRUE)
+lcpm_table <- as.data.frame(t(lcpm_table))
+full_table <- lcpm_table
+factor_of_interest <- donor_info[,c(4,20)]
+full_table$AD_condtion <- as.factor(factor_of_interest$AD_condtion)
+autoplot(prcomp(lcpm_table), data=full_table, colour = "AD_condtion")
+```
+```{r}
+#write.table(lcpm_table, "lcpm_table.txt", sep = ",")
+```
+
+The plot above shows that the diagnosis of AD can neither separate the two groups statistically. The analysis part of the project ends here and the rest of it will be trying to accomplish the PCA function in R shiny.
+
+
+
+

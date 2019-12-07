@@ -18,6 +18,10 @@ End
 1. Milestone 1 (11/14/18): Found that FPKM value is not suitable for differential expression analysis, need to use bam data to generate raw counts table. Following step: Download all bam files and learn how to use featureCounts function.
 2. Milestone 2 (11/21/18): Could get a raw counts table of gene counts matrix from all samples, but the DGEList I got is not identical to the sample on the vignette. Following step: Need to figure out how to follow the vignette to proceed to the next step.
 3. Milestone 3 (11/27/18): Could get output images following the limma vignette. Following step: Need to set up an appropriate design matrix which can best reflect the genes' correlation with AD.
+4. Final Update. The application for PCA was published. This application uses RNA lcpm data as input, to do a PCA on AD (whether diagnosed with AD) or sex factor. But it does not function consistently (could only work when select AD as input value) and the PCA result is not good.
 
+## Project Conclusion:
+#  As still an untreated disease, Alzheimer Disease is extremely complicated at the RNA level. Using basic analysis method like PCA could not give satisfactory results. So, more advanced methods in the research of AD are in urgent need.  
 
+- Published R notebook [Project Notebook] (http://rpubs.com/ericpanyc/557398)
 - Large Files could be downloaded here [Large Files](https://drive.google.com/drive/folders/1crh2GuOxyJKxGpncZWn_TXzn9oMQtceJ)
