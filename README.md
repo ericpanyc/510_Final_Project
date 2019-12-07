@@ -21,7 +21,7 @@ End
 4. Final Update. The application for PCA was published. This application uses RNA lcpm data as input, to do a PCA on AD (whether diagnosed with AD) or sex factor. But it does not function consistently (could only work when select AD as input value) and the PCA result is not good.
 
 ## Project Conclusion:
-#  As still an untreated disease, Alzheimer Disease is extremely complicated at the RNA level. Using basic analysis method like PCA could not give satisfactory results. So, more advanced methods in the research of AD are in urgent need.  
+###  As still an untreated disease, Alzheimer Disease is extremely complicated at the RNA level. Using basic analysis method like PCA could not give satisfactory results. So, more advanced methods in the research of AD are in urgent need.  
 
 - Published R notebook [Project Notebook] (http://rpubs.com/ericpanyc/557398)
 - Large Files could be downloaded here [Large Files](https://drive.google.com/drive/folders/1crh2GuOxyJKxGpncZWn_TXzn9oMQtceJ)
